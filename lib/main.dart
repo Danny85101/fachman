@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
-import 'hlavni_obrazovka.dart'; // Tady natahujeme kabel do nového šuplíku!
+import 'hlavni_obrazovka.dart'; 
+import 'sklad.dart'; // Starý kabel k výdajům
+import 'sklad_diar.dart'; // NOVÝ kabel k paměti Diáře!
 
-void main() => runApp(const DigitalniFachman());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Nahrajeme staré výdaje
+  await nactiZPameti();
+  
+  // Nahrajeme i naplánované zakázky z Diáře
+  await nactiDiarZPameti();
+
+  runApp(const DigitalniFachman());
+}
 
 class DigitalniFachman extends StatelessWidget {
   const DigitalniFachman({super.key});

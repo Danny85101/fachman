@@ -9,11 +9,26 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  image_picker: ^1.2.1
+  share_plus: ^12.0.1
+  shared_preferences: ^2.5.4
+  speech_to_text: ^7.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # TADY JE TEN NÁŠ KOUZELNÍK NA IKONKY
+  flutter_launcher_icons: "^0.13.1"
+
+# TADY KOUZELNÍKOVI ŘÍKÁME, KDE JE LOGO
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/logo.png"
 
 flutter:
   uses-material-design: true
+  # TADY ŘÍKÁME FLUTTERU, ŽE MÁME SLOŽKU ASSETS
+  assets:
+    - assets/
