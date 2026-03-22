@@ -4,11 +4,14 @@ publish_to: 'none'
 version: 0.1.0+1
 
 environment:
-  sdk: ^3.11.1
+  sdk: '^3.11.0'
 
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
   image_picker: ^1.2.1
   share_plus: ^12.0.1
   shared_preferences: ^2.5.4
@@ -18,17 +21,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  # TADY JE TEN NÁŠ KOUZELNÍK NA IKONKY
-  flutter_launcher_icons: "^0.13.1"
+  flutter_launcher_icons: ^0.13.1
 
-# TADY KOUZELNÍKOVI ŘÍKÁME, KDE JE LOGO
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/logo.png"
+  remove_alpha_ios: true
+  # TADY JE TA OPRAVA PRO ANDROID: Bílé pozadí a na tom tvoje logo
+  adaptive_icon_background: "#FFFFFF" 
+  adaptive_icon_foreground: "assets/logo.png"
 
 flutter:
   uses-material-design: true
-  # TADY ŘÍKÁME FLUTTERU, ŽE MÁME SLOŽKU ASSETS
   assets:
     - assets/

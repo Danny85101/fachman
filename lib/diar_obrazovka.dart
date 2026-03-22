@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
-import 'sklad_diar.dart'; // Saháme do paměti diáře
+import 'package:intl/intl.dart'; 
+import 'sklad_diar.dart'; 
+import 'chytry_kalendar.dart'; 
+// PŘIDÁNO: Načítáme naše dvě nové čisté kostičky!
+import 'diar_karta.dart';
+import 'diar_uprava_dialog.dart';
 
 class DiarObrazovka extends StatefulWidget {
   const DiarObrazovka({super.key});
@@ -13,8 +18,26 @@ class _DiarObrazovkaState extends State<DiarObrazovka> {
   final TextEditingController kdoController = TextEditingController();
   final TextEditingController coController = TextEditingController();
 
-  // Funkce, která otevře okénko pro zadání nové práce
-  void _pridatZakazku() {
+  List<dynamic> _ziskatSerazeneZakazky() {
+    var serazeno = List.from(vsechnyZakazky);
+    serazeno.sort((a, b) {
+      try {
+        DateTime datumA = DateFormat("d. M. yyyy").parseStrict(a['kdy']);
+        DateTime datumB = DateFormat("d. M. yyyy").parseStrict(b['kdy']);
+        return datumA.compareTo(datumB);
+      } catch (e) {
+        return 0; 
+      }
+    });
+    return serazeno;
+  }
+
+  // ZJEDNODUŠENO: Tohle teď slouží UŽ JENOM pro přidání ÚPLNĚ NOVÉ zakázky
+  void _otevritFormularNovaZakazka() {
+    kdyController.clear();
+    kdoController.clear();
+    coController.clear();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -22,7 +45,14 @@ class _DiarObrazovkaState extends State<DiarObrazovka> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: kdyController, decoration: const InputDecoration(labelText: 'Kdy (např. Čtvrtek 8:00)')),
+            TextField(
+              controller: kdyController,
+              readOnly: true, 
+              decoration: const InputDecoration(labelText: 'Datum zakázky', hintText: 'Ťukni sem pro kalendář'),
+              onTap: () {
+                ChytryKalendar.vybratDatum(context, kdyController);
+              },
+            ),
             TextField(controller: kdoController, decoration: const InputDecoration(labelText: 'Kdo (Zákazník)')),
             TextField(controller: coController, decoration: const InputDecoration(labelText: 'Co se bude dělat')),
           ],
@@ -32,22 +62,21 @@ class _DiarObrazovkaState extends State<DiarObrazovka> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             onPressed: () {
-              if (kdyController.text.isNotEmpty && kdoController.text.isNotEmpty) {
+              if (kdoController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Chybí jméno zákazníka!')));
+                return;
+              }
+
+              if (kdyController.text.isNotEmpty) {
                 setState(() {
-                  // Zapíšeme novou práci do naší krabice
                   vsechnyZakazky.add({
-                    'kdy': kdyController.text,
+                    'kdy': kdyController.text, 
                     'kdo': kdoController.text,
                     'co': coController.text,
                   });
-                  ulozDiarDoPameti(); // A rovnou uložíme na disk
+                  ulozDiarDoPameti(); 
                 });
-                
-                // Vyčistíme kolonky pro příště
-                kdyController.clear();
-                kdoController.clear();
-                coController.clear();
-                Navigator.pop(context); // Zavřeme okénko
+                Navigator.pop(context); 
               }
             },
             child: const Text('ULOŽIT', style: TextStyle(color: Colors.white)),
@@ -57,17 +86,39 @@ class _DiarObrazovkaState extends State<DiarObrazovka> {
     );
   }
 
-  // Funkce pro smazání (odškrtnutí) hotové práce
-  void _smazatZakazku(Map<String, dynamic> zakazka) {
-    setState(() {
-      vsechnyZakazky.remove(zakazka);
-      ulozDiarDoPameti();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Dobrá práce! Úkol splněn.')));
+  // PŘIDÁNO: Naše chytrá pojistka proti nechtěnému smazání!
+  void _potvrditSmazaniZakazky(Map<String, dynamic> zakazka) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Skutečně vymazat?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Opravdu chceš smazat tuto zakázku pro zákazníka "${zakazka['kdo']}"?\n\nTuhle akci už nepůjde vzít zpět!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('NE', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              setState(() {
+                vsechnyZakazky.remove(zakazka);
+                ulozDiarDoPameti();
+              });
+              Navigator.pop(context); // Zavře dialog
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Zakázka smazána.')));
+            },
+            child: const Text('ANO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          )
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    var sepsaneZakazky = _ziskatSerazeneZakazky();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
@@ -77,37 +128,35 @@ class _DiarObrazovkaState extends State<DiarObrazovka> {
         foregroundColor: Colors.white,
       ),
       
-      body: vsechnyZakazky.isEmpty
+      body: sepsaneZakazky.isEmpty
           ? const Center(child: Text('Zatím nemáš naplánovanou žádnou práci.', style: TextStyle(fontSize: 18)))
-          // Tady se vypisují všechny naplánované práce pod sebou
           : ListView.builder(
               padding: const EdgeInsets.all(10),
-              itemCount: vsechnyZakazky.length,
+              itemCount: sepsaneZakazky.length,
               itemBuilder: (context, index) {
-                var zakazka = vsechnyZakazky[index];
-                
-                return Card(
-                  elevation: 3,
-                  margin: const EdgeInsets.only(bottom: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  child: ListTile(
-                    leading: const Icon(Icons.calendar_month, color: Colors.orange, size: 35),
-                    title: Text('${zakazka['kdy']} - ${zakazka['kdo']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    subtitle: Text(zakazka['co'], style: const TextStyle(fontSize: 16)),
-                    
-                    // Zelená fajfka pro splnění úkolu
-                    trailing: IconButton(
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.green, size: 35),
-                      onPressed: () => _smazatZakazku(zakazka),
-                    ),
-                  ),
+                var zakazka = sepsaneZakazky[index];
+                String hezkeDatum = zakazka['kdy'];
+
+                // ZJEDNODUŠENO: Tady jen skládáme naše nové kostičky! Žádný nekonečný kód.
+                return DiarKarta(
+                  zakazka: zakazka,
+                  hezkeDatum: hezkeDatum,
+                  naSmazani: () => _potvrditSmazaniZakazky(zakazka), // Zavolá naši pojistku smazání
+                  naUpravu: () {
+                    // Zavolá naše chytré okénko na úpravu
+                    DiarUpravaDialog.ukazat(
+                      context,
+                      zakazka: zakazka,
+                      hezkeDatum: hezkeDatum,
+                      poZmene: () => setState(() {}), // Jakmile okénko něco změní, překreslíme seznam
+                    );
+                  },
                 );
               },
             ),
             
-      // Tlačítko dole v rohu pro přidání
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _pridatZakazku,
+        onPressed: _otevritFormularNovaZakazka, 
         backgroundColor: Colors.orange,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('PŘIDAT PRÁCI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

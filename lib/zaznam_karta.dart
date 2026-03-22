@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'sklad.dart';
-import 'fotka_nahled.dart'; // Aby řádek uměl otevřít fotku
+import 'fotka_nahled.dart'; 
+import 'zaznam_uprava_dialog.dart'; 
 
 class ZaznamKarta extends StatefulWidget {
   final Map<String, dynamic> zaznam;
-  final VoidCallback poZmene; // Tohle je takový zvonek, kterým karta cinkne na hlavní obrazovku, když něco smaže/upraví
+  final VoidCallback poZmene; 
 
   const ZaznamKarta({super.key, required this.zaznam, required this.poZmene});
 
@@ -16,45 +17,29 @@ class ZaznamKarta extends StatefulWidget {
 
 class _ZaznamKartaState extends State<ZaznamKarta> {
   
-  void _smazatZaznam() {
-    setState(() {
-      vsechnyNakupy.remove(widget.zaznam);
-    });
-    ulozDoPameti(); // Uložíme smazání na disk
-    widget.poZmene(); // Cinkneme hlavní obrazovce, ať se překreslí
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Záznam smazán!')));
-  }
-
-  void _upravitZaznam() {
-    TextEditingController upravaNazev = TextEditingController(text: widget.zaznam['polozka']);
-    TextEditingController upravaCena = TextEditingController(text: widget.zaznam['cena'].toString());
-
+  void _potvrditSmazaniZaznamu() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Opravit záznam', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: upravaNazev, decoration: const InputDecoration(labelText: 'Název')),
-            TextField(controller: upravaCena, decoration: const InputDecoration(labelText: 'Cena (Kč)'), keyboardType: TextInputType.number),
-          ],
-        ),
+        title: const Text('Skutečně vymazat?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Opravdu chceš smazat položku "${widget.zaznam['polozka']}"?\n\nTuhle akci už nepůjde vzít zpět!'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('ZRUŠIT', style: TextStyle(color: Colors.grey))),
+          TextButton(
+            onPressed: () => Navigator.pop(context), 
+            child: const Text('NE', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold))
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
               setState(() {
-                widget.zaznam['polozka'] = upravaNazev.text;
-                widget.zaznam['cena'] = double.tryParse(upravaCena.text) ?? 0;
+                vsechnyNakupy.remove(widget.zaznam);
               });
-              ulozDoPameti(); // Uložíme opravu na disk
-              widget.poZmene(); // Cinkneme obrazovce
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Záznam opraven!')));
+              ulozDoPameti(); 
+              widget.poZmene(); 
+              Navigator.pop(context); 
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Záznam smazán!')));
             },
-            child: const Text('ULOŽIT OPRAVU', style: TextStyle(color: Colors.white)),
+            child: const Text('ANO', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           )
         ],
       ),
@@ -64,40 +49,87 @@ class _ZaznamKartaState extends State<ZaznamKarta> {
   @override
   Widget build(BuildContext context) {
     final maFotku = widget.zaznam['fotka'] != null;
-    // TADY SI VYTAHUJEME TO NAŠE NOVÉ DATUM (pokud tam je)
     final datum = widget.zaznam['datum'] ?? '';
 
-    return Container(
-      decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.black12))),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-        
-        leading: maFotku
-            ? GestureDetector(
-                onTap: () => ukazatVelkouFotku(context, widget.zaznam['fotka']),
-                child: SizedBox(
-                  width: 50, height: 50,
+    // ZMĚNA: Zahodili jsme ListTile, stavíme to ručně!
+    return InkWell(
+      // onTap pro úpravu záznamu jsme nechali
+      onTap: () {
+        ZaznamUpravaDialog.ukazat(
+          context,
+          zaznam: widget.zaznam,
+          poZmene: () {
+            setState(() {}); 
+            widget.poZmene(); 
+          },
+        );
+      },
+      child: Container(
+        // Elegantní čára mezi záznamy
+        decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.black12))),
+        // Vykašlali jsme se na standardní ListTile padding
+        child: IntrinsicHeight( // Zajišťuje, aby fotka byla stejně vysoká jako text vedle
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch, // Nutí fotku přes celou výšku!
+            children: [
+              // --- 1. SEKCE: FOTKA (nebo Ikona foťáku) ---
+              GestureDetector(
+                onTap: maFotku ? () => ukazatVelkouFotku(context, widget.zaznam['fotka']) : null,
+                child: Container(
+                  width: 90, // Pevná šířka pro logo/fotku
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200], // Šedivé pozadí pro ikony bez fotky
+                    // Jemné zaoblení rohu fotky
+                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), bottomLeft: Radius.circular(8)), 
+                  ),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(5),
-                    child: kIsWeb 
-                        ? Image.network(widget.zaznam['fotka'], fit: BoxFit.cover)
-                        : Image.file(File(widget.zaznam['fotka']), fit: BoxFit.cover),
+                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(8), bottomLeft: Radius.circular(8)), 
+                    child: maFotku
+                      ? (kIsWeb 
+                          ? Image.network(widget.zaznam['fotka'], fit: BoxFit.cover) // BoxFit.cover = fotka se ořízne, ale nezdeformuje
+                          : Image.file(File(widget.zaznam['fotka']), fit: BoxFit.cover))
+                      // PŘIDÁNO: Pokud fotka není, ukážeme elegantní šedivý foťák
+                      : Icon(Icons.camera_alt, size: 40, color: Colors.grey[400]),
                   ),
                 ),
-              )
-            : const Icon(Icons.receipt_long, size: 30, color: Colors.grey),
-        
-        title: Text(widget.zaznam['polozka'], style: const TextStyle(fontWeight: FontWeight.bold)),
-        // POD CENU JSME PŘIDALI I ZOBRAZENÍ DATA
-        subtitle: Text('${widget.zaznam['cena']} Kč\n$datum', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-        isThreeLine: datum.isNotEmpty, // Pokud máme datum, uděláme víc místa pro text
-        
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: _upravitZaznam),
-            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: _smazatZaznam),
-          ],
+              ),
+              
+              // --- 2. SEKCE: TEXTY (Název, Cena, Datum) ---
+              Expanded( // Zabere zbytek místa v řádku
+                child: Padding(
+                  padding: const EdgeInsets.all(15), // Pěknej prostor kolem textu
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center, // Vycentruje texty vertikálně
+                    children: [
+                      Text(
+                        widget.zaznam['polozka'], 
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        maxLines: 2, // Max 2 řádky pro název, pak se ořízne
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 5), // Mezera mezi názvem a cenou
+                      Text(
+                        '${widget.zaznam['cena']} Kč', 
+                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 15)
+                      ),
+                      if (datum.isNotEmpty) ...[
+                        const SizedBox(height: 3), // Mezera před datem
+                        Text(datum, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              
+              // --- 3. SEKCE: POPELNICE (Smazání) ---
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red), 
+                onPressed: _potvrditSmazaniZaznamu
+              ),
+              const SizedBox(width: 5), // Malý odstup od pravého kraje
+            ],
+          ),
         ),
       ),
     );

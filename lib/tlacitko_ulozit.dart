@@ -3,7 +3,10 @@ import 'sklad.dart';
 import 'data_formulare.dart'; 
 
 class TlacitkoUlozit extends StatefulWidget {
-  const TlacitkoUlozit({super.key});
+  // PŘIDÁNO: Připravili jsme místo pro zvonek, který schová pásku
+  final VoidCallback? poUlozeni;
+
+  const TlacitkoUlozit({super.key, this.poUlozeni});
 
   @override
   State<TlacitkoUlozit> createState() => _TlacitkoUlozitState();
@@ -71,6 +74,11 @@ class _TlacitkoUlozitState extends State<TlacitkoUlozit> {
             hodinyController.clear();
             sazbaController.clear();
             prilozenaFotka = null;
+
+            // ZAZVONÍME! (Tím řekneme obrazovce, ať pásku po smazání fotky schová)
+            if (widget.poUlozeni != null) {
+              widget.poUlozeni!();
+            }
           }
         },
         child: const Text('ULOŽIT VÝDAJ / PRÁCI', style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold)),

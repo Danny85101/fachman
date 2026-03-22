@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+// PŘIDÁNO: Načteme ten nový český slovník, co jsme si přidali do pubspec.yaml
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'hlavni_obrazovka.dart'; 
 import 'sklad.dart'; // Starý kabel k výdajům
 import 'sklad_diar.dart'; // NOVÝ kabel k paměti Diáře!
@@ -22,6 +25,18 @@ class DigitalniFachman extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      
+      // --- OPRAVENO: TADY ZAPÍNÁME ČEŠTINU BEZ SLOVÍČEK CONST ---
+      localizationsDelegates: [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: [
+        const Locale('cs', 'CZ'), // Říkáme aplikaci: Tvůj rodný jazyk je teď čeština!
+      ],
+      // --- KONEC ČEŠTINY ---
+
       theme: ThemeData(primarySwatch: Colors.orange),
       home: const HlavniObrazovka(),
     );

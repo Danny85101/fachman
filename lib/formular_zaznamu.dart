@@ -1,76 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'data_formulare.dart'; // Načteme si propisky
-import 'tlacitko_ulozit.dart'; // Načteme si naše oddělené tlačítko
+import 'data_formulare.dart'; 
+import 'tlacitko_ulozit.dart'; 
+import 'chytry_mikrofon.dart'; 
 
 class FormularZaznamu extends StatefulWidget {
-  const FormularZaznamu({super.key});
+  // PŘIDÁNO: Připravili jsme místo pro kabel (zvonek z hlavní obrazovky)
+  final VoidCallback? poUlozeni;
+
+  const FormularZaznamu({super.key, this.poUlozeni});
 
   @override
   State<FormularZaznamu> createState() => _FormularZaznamuState();
 }
 
 class _FormularZaznamuState extends State<FormularZaznamu> {
-  final stt.SpeechToText _speech = stt.SpeechToText();
-
-  void _ziskatHlas(TextEditingController kamZapsat, String nazevKolonky) async {
-    bool dostupne = await _speech.initialize();
-    if (dostupne) {
-      bool posloucham = true;
-      String prubeznyText = kamZapsat.text; 
-
-      showModalBottomSheet(
-        context: context,
-        isDismissible: false,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setModalState) {
-              if (posloucham) {
-                _speech.listen(
-                  localeId: 'cs_CZ',
-                  onResult: (vysledek) {
-                    setModalState(() {
-                      kamZapsat.text = prubeznyText.isEmpty 
-                          ? vysledek.recognizedWords 
-                          : "$prubeznyText ${vysledek.recognizedWords}";
-                    });
-                  },
-                );
-              } else {
-                _speech.stop();
-              }
-
-              return Container(
-                padding: const EdgeInsets.all(20),
-                height: 250,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text('Diktuješ do: $nazevKolonky', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    const SizedBox(height: 10),
-                    Text(kamZapsat.text, style: const TextStyle(fontSize: 18, color: Colors.blue), textAlign: TextAlign.center, maxLines: 2),
-                    const SizedBox(height: 20),
-                    InkWell(
-                      onTap: () {
-                        setModalState(() => posloucham = false);
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        height: 80,
-                        width: 80,
-                        decoration: BoxDecoration(color: posloucham ? Colors.red : Colors.orange, shape: BoxShape.circle),
-                        child: Icon(posloucham ? Icons.stop : Icons.mic, size: 40, color: Colors.black),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ).whenComplete(() => _speech.stop());
-    }
-  }
+  final ChytryMikrofon mujMikrofon = ChytryMikrofon();
 
   @override
   Widget build(BuildContext context) {
@@ -81,6 +25,8 @@ class _FormularZaznamuState extends State<FormularZaznamu> {
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey)),
           child: Column(
             children: [
+              // Ta stará zelená kontrolka je odtud odstraněna, protože ji máme nově hned pod žlutým tlačítkem
+
               TextField(
                 controller: nakupController,
                 decoration: InputDecoration(
@@ -88,7 +34,7 @@ class _FormularZaznamuState extends State<FormularZaznamu> {
                   border: const UnderlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.mic, color: Colors.blue),
-                    onPressed: () => _ziskatHlas(nakupController, 'CO JSI KOUPIL'),
+                    onPressed: () => mujMikrofon.ziskatHlas(context, nakupController, 'CO JSI KOUPIL'),
                   ),
                 ),
               ),
@@ -99,7 +45,7 @@ class _FormularZaznamuState extends State<FormularZaznamu> {
                   border: const UnderlineInputBorder(),
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.mic, color: Colors.blue),
-                    onPressed: () => _ziskatHlas(zakaznikController, 'PRO KOHO'),
+                    onPressed: () => mujMikrofon.ziskatHlas(context, zakaznikController, 'PRO KOHO'),
                   ),
                 ),
               ),
@@ -115,7 +61,7 @@ class _FormularZaznamuState extends State<FormularZaznamu> {
                         border: const UnderlineInputBorder(),
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.mic, color: Colors.blue),
-                          onPressed: () => _ziskatHlas(hodinyController, 'HODINY'),
+                          onPressed: () => mujMikrofon.ziskatHlas(context, hodinyController, 'HODINY'),
                         ),
                       ),
                     ),
@@ -130,7 +76,7 @@ class _FormularZaznamuState extends State<FormularZaznamu> {
                         border: const UnderlineInputBorder(),
                         suffixIcon: IconButton(
                           icon: const Icon(Icons.mic, color: Colors.blue),
-                          onPressed: () => _ziskatHlas(sazbaController, 'Kč / HOD'),
+                          onPressed: () => mujMikrofon.ziskatHlas(context, sazbaController, 'Kč / HOD'),
                         ),
                       ),
                     ),
@@ -145,7 +91,7 @@ class _FormularZaznamuState extends State<FormularZaznamu> {
                   border: InputBorder.none,
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.mic, color: Colors.blue),
-                    onPressed: () => _ziskatHlas(cenaController, 'PEVNÁ CENA'),
+                    onPressed: () => mujMikrofon.ziskatHlas(context, cenaController, 'PEVNÁ CENA'),
                   ),
                 ),
               ),
@@ -154,8 +100,8 @@ class _FormularZaznamuState extends State<FormularZaznamu> {
         ),
         const SizedBox(height: 25),
         
-        // TADY SE NAČTE TO NAŠE ODDĚLENÉ ZELENÉ TLAČÍTKO
-        const TlacitkoUlozit(),
+        // PŘIDÁNO: Předáváme kabel od zvonku dál dolů přímo do ukládacího tlačítka!
+        TlacitkoUlozit(poUlozeni: widget.poUlozeni),
       ],
     );
   }
