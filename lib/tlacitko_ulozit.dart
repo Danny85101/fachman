@@ -59,7 +59,7 @@ class _TlacitkoUlozitState extends State<TlacitkoUlozit> {
                 'zakaznik': uhlazeneJmeno, 
                 'cena': vyslednaCena,
                 'fotka': prilozenaFotka,
-                'datum': dnesniDatum, // TADY UKLÁDÁME AUTOMATICKÉ DATUM!
+                'datum': dnesniDatum, 
               });
               
               ulozDoPameti();
@@ -74,6 +74,9 @@ class _TlacitkoUlozitState extends State<TlacitkoUlozit> {
             hodinyController.clear();
             sazbaController.clear();
             prilozenaFotka = null;
+
+            // PŘIDÁNO: Kouzelný povel, který okamžitě schová klávesnici a zruší blikající kurzor!
+            FocusScope.of(context).unfocus();
 
             // ZAZVONÍME! (Tím řekneme obrazovce, ať pásku po smazání fotky schová)
             if (widget.poUlozeni != null) {
